@@ -1,10 +1,8 @@
-% 从命令行读取用户输入
-fprintf('请输入 m 的值 (整数): ');
-m = input('');
+% 示例：生成 GF(2^3) 的 BCH 码生成多项式
+GF = gf(0:7, 3);  % 构建 GF(2^3)
+m = 3;  % 域阶
+t = 2;  % 纠错能力
 
-% 生成 M 数组
-M = PrimitivePolynomialGenerator(m);
-
-% 显示结果
-disp('生成的 M 数组:');
-disp(M);
+genPoly = GeneratorPolynomialGenerator(GF, m, t);
+disp('生成多项式：');
+disp(genPoly);
