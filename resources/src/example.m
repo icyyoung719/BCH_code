@@ -38,6 +38,7 @@ checkbits = polynomial_mod(dividend, g_x);
 
 % Create final codeword by combining info & checkbits
 tx_codeword = [info checkbits];
+disp(tx_codeword);
 
 % ------------------------------ Decode --------------------------------- %
 
