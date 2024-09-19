@@ -1,35 +1,35 @@
-function genPoly = GeneratorPolynomialGenerator(GF, m, t, primPoly)
+function [genpoly, t] = GeneratorPolynomialGenerator(GF, m, t, primPoly)
     % GF: 已知的GF(2^m)有限域，由GF = de2bi(M, m, 'left-msb')产生
     % m: 域扩展的阶数，即 GF(2^m)
     % t: 纠错能力
     % primPoly: 采用的本原多项式，存放不同m对应的本原多项式的10进制表示 
-    
-    % 本原元素 alpha 的索引（假设 alpha 是第一个非零元素，这里用 2 作为示例）
-    alpha = GF(2);  % 对应 alpha = 2
-    
-    % 初始化生成多项式为 1
-    genPoly = gf([1], 1, primPoly);
-    visitedConjugates = {};
-    
-    % 遍历从 alpha^0 到 alpha^(2t-1)，计算所有最小项多项式
-    for i = 1:(2 * t - 1)
-        % 获取 alpha^i 的共轭类
-        conjClass = GetConjugateClass(alpha, i, m);
-        
-        % 检查是否已经遍历过这个共轭类
-        if ~ismemberCell(conjClass, visitedConjugates)
-            % 将共轭类添加到已遍历的列表中
-            visitedConjugates = [visitedConjugates, {conjClass}];
-            
-            % 计算 alpha^i 的最小项多项式 phi_i(x)
-            minPoly = MinimalPolynomial(conjClass, GF, m, primPoly);
-            
-            % 使用多项式乘法累乘最小项多项式
-            genPoly = conv(genPoly, minPoly);
+
+    t2 = 2*t;
+
+    % 确定域的共轭类
+    coset = cosets(m, primPoly, 'nodisplay');
+
+    % 确定最小多项式
+    minpol_list = [];
+    for idx1 = 2 : numel(coset)
+        if(any(find(log(coset{idx1}) < t2)))  % coset contains a power of alpha < 2t 
+            tempPoly = 1;
+            thisCoset = coset{idx1};
+            for idx2 = 1 : length(thisCoset)
+                tempPoly = conv(tempPoly, [1 thisCoset(idx2)]);
+            end
+            minPol = gf([zeros(1,m+1-length(tempPoly))  tempPoly.x],1);
+            minpol_list = [minpol_list;minPol];
         end
     end
-    
-    % 最终生成多项式 genPoly
+
+    % 确定生成多项式
+    len = size(minpol_list, 1);
+    genpoly = 1;
+    for i = 1:len
+        genpoly = conv(genpoly, minpol_list(i,:));
+    end
+    genpoly = genpoly(end-(GF-m) :end);
 end
 
 % 计算给定元素的共轭类
