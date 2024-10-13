@@ -2,12 +2,12 @@ global m;
 global t;
 global k;
 
-m = 5;          % Parameter used to define size of GF(2^m)
-t = 3;          % Number of correctable errors
-k = 16;         % Number of information bits
-n = 2^m - 1;    % Block length (codeword length)
-p = n - k;      % Number of parity check bits
-d = 2*t + 1;    % Minimum Hamming Distance between codewords
+m = 5;          % 取人伽罗华域的大小GF(2^m)
+t = 3;          % 纠错数
+k = 16;         % 信息位数
+n = 2^m - 1;    % 编码后长度
+p = n - k;      % 检验位数
+d = 2*t + 1;    % 最小汉明距离
 % 检验输入的数据是否冲突
 if k > n
     error('信息位 k 不能大于码字长度 n');
@@ -32,25 +32,16 @@ primPolys = [
 ];
 
 % 由m选择预先准备的本原多项式
-primPoly;
-primPolyBin;
 primPoly = primPolys(m - 1);  % 根据m选择相应的本原多项式
 primPolyBin = de2bi(primPoly, m + 1, 'left-msb');  % 本原多项式的二进制形式
 M = PrimitivePolynomialGenerator(m,primPoly);
-GF;
 GF = de2bi(M, m, 'left-msb');
 
 % 求生成多项式及最小项多项式，需要先求出各个共轭类，再求每个共轭类的最小项多项式
 [g_x , minpol_list , minpol_list_all] = GeneratorPolynomialGenerator(GF,m,t,primPoly);
 
 % ------------------------------ Encode --------------------------------- %
-% Encode 16-bits of information into a 31-bit Codeword. Codeword =
-% Information + Checkbits. The Checkbits are obtained by dividing a
-% polynomial that represents our information by the generator polynomial,
-% g(x). I will use ASCII character "A" (65, 1000001) as the information in
-% this example.
-
-% Create 16-bit binary represenation of "A"
+% 将输入的信息转化为k位二进制串，进行编码
 % 需要确保信息位长度 <= k，少于的部分会自动用0补全
 input_info = 65;
 if input_info >= 2^k
@@ -58,52 +49,50 @@ if input_info >= 2^k
 end
 info = de2bi(input_info, k, 'left-msb');
 
-% Calculate checkbits. Append a number of zeros equal to the degree of g(x) 
-% to info. This will be our dividend.
+% 将信息位前移，为校验位提供位置
 dividend = info;
 dividend(end+1:end+length(g_x)-1) = 0;
 
-% Divide by the generator polynomial, g(x) and obtain the remainder as our
-% checkbits.
+% 使用多项式除法计算校验位
 checkbits = polynomial_mod(dividend, g_x);
 
-% Create final codeword by combining info & checkbits
+% 信息位+校验位生成编码序列
 tx_codeword = [info checkbits];
+disp("编码序列：");
+disp(tx_codeword);
 
 % ------------------------------ Decode --------------------------------- %
-% Simulate 3 errors during the transmission of tx_codeword
+% 模拟传输过程中的比特错误
 rx_codeword = tx_codeword;
 rx_codeword(4) = 1;
 rx_codeword(9) = 1;
 rx_codeword(22) = 0;
 
-% 计算伴随式
-% Compute the 2t components of the syndrome vector, S(x)
-% minimal polynomials of alpha, alpha^2, ..., alpha^6.
+% 1.计算伴随式
 % minpol_list内存放t个最小项多项式
+% minpol_list_all 内存放2t个包含重复的最小项多项式
 
 % 初始化伴随式向量S(x)
 S_a = zeros(1, 2*t);
 
-% 1、计算每个伴随式分量 S(x)
-% 对于每个 alpha^i 的伴随式，我们使用 alpha^i 的最小项多项式
+% 对于每个 alpha^i 的伴随式，使用 alpha^i 的最小项多项式
 for i = 1:2*t
     minpol = minpol_list_all{i};
     minpol = minpol.x;
-    % 计算rx_codeword与这个最小项多项式的取模
+    % 计算rx_codeword与这个最小项多项式的取模，即S的2t个分量
     S_i = polynomial_mod(rx_codeword, minpol);
+    % 转换为有限域中的幂次形式
     S_a(i) = poly2power(GF, polynomial_mod(generateSi_a(S_i, i), primPolyBin));
 end
 
 % 显示伴随式分量 S(x)
-disp('Syndrome components S(x):');
+disp("伴随式分量S(x):");
 disp(S_a);
 
-% 2: Find the error locator polynomial from the syndrome components 
-% using Berlekamp's algorithm. 
+% 2.使用berlekamp_massey算法进行译码，得到错误位置多项式
 
 % S_a 是由之前步骤计算得到的伴随式向量
 sigma_x = berlekamp_massey(S_a, t, GF, primPolyBin);
 
 % sigma_x 就是错误定位多项式，可以用来查找根（即错误位置）
-
+% 无法使用标准bchdec函数，因为需要编码序列位GF(2)而非GF(2^n)

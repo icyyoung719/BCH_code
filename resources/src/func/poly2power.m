@@ -1,21 +1,17 @@
-% poly2power takes a GF matrix, locates poly within this matrix, and returns
-% the power corresponding to the Power Form of poly. NOTE: If poly is equal
-% to [0 0 0 0 0], poly2power returns -1, which coresponds to decimal value
-% of 0. GF has n-Tuple Form elements, each of which are 5 bits wide. Zeros
-% must be padded onto poly, if necessary, to make poly 5 bits wide so that
-% its dimensions match the elements of GF.
+% poly2power 函数接收一个有限域 (GF) 矩阵，该多项式对应的幂次形式
 function [ power ] = poly2power( GF, poly )
-	% Make sure poly is 5 bits wide.
-	temp = bi2de(poly, 'left-msb');
-	poly = de2bi(temp, 5, 'left-msb');
+	% 确保多项式是 m 位宽的二进制数。
+    global m;
+	temp = bi2de(poly, 'left-msb');   % 将多项式从二进制转换为十进制
+	poly = de2bi(temp, m, 'left-msb'); % 再将其转换为长度为 m 的二进制形式
 
-	% Find location of poly in GF.
+	% 在 GF 中找到多项式的位置。
 	location = 0;
 	for i = 1:size(GF,1)
-		if GF(i,:) == poly
-			location = i;
+		if GF(i,:) == poly  % 如果在 GF 中找到与 poly 相同的元素
+			location = i;    % 记录位置
 		end
 	end
 
-	power = location - 2;
+	power = location - 2;  % 幂次形式的值是位置减去 2
 end
