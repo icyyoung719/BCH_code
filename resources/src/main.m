@@ -2,8 +2,8 @@ global m;
 global t;
 global k;
 
-m = 5;          % 取人伽罗华域的大小GF(2^m)
-t = 3;          % 纠错数
+m = 6;          % 取人伽罗华域的大小GF(2^m)
+t = 2;          % 纠错数
 k = 16;         % 信息位数
 n = 2^m - 1;    % 编码后长度
 p = n - k;      % 检验位数
@@ -39,6 +39,7 @@ GF = de2bi(M, m, 'left-msb');
 
 % 求生成多项式及最小项多项式，需要先求出各个共轭类，再求每个共轭类的最小项多项式
 [g_x , minpol_list , minpol_list_all] = GeneratorPolynomialGenerator(GF,m,t,primPoly);
+% g_x = [zeros(1, k - length(g_x)), g_x];
 % 生成field_table，是对GF的包装，用于BM译码
 field_table = cell(2^m,2);
 for i = 1:2^m
@@ -49,17 +50,22 @@ end
 % ------------------------------ Encode --------------------------------- %
 % 将输入的信息转化为k位二进制串，进行编码
 % 需要确保信息位长度 <= k，少于的部分会自动用0补全
-input_info = 1;
+
+% 随机获取长度小于等于k的信息数据
+max_value = 2^k - 1;
+input_info = randi(max_value);
+% input_info = 65;
 info_length = floor(log2(input_info)) + 1;
 if info_length > k
     error("输入的信息位过长，无法用 k 位二进制数表示！");
 end
+
 info = de2bi(input_info, k, 'left-msb');
 
 % 将信息位前移，为校验位提供位置
 % 需要确保dividend长度为p，不足的用0补齐
 dividend = info;
-dividend(end+1:end+length(g_x)-1) = 0;
+dividend(end+1:end+p) = 0;
 
 % 使用多项式除法计算校验位
 checkbits = polynomial_mod(dividend, g_x);
@@ -75,7 +81,7 @@ tx_codeword = [info checkbits];
 rx_codeword = tx_codeword;
 rx_codeword(4) = 1;
 rx_codeword(9) = 1;
-rx_codeword(22) = 0;
+% rx_codeword(22) = 0;
 
 % Step 1.计算伴随式
 % minpol_list内存放t个最小项多项式
