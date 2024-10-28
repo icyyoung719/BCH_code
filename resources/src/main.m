@@ -1,10 +1,15 @@
+% Found Errors:
+% m=10 , t=3 
+% m=7,t =4
+% m=7 t=3 结果可能正确，也可能出错
+% ------------------------------ Begin --------------------------------- %
 global m;
 global t;
 global k;
 
 m = 6;          % 取人伽罗华域的大小GF(2^m)
-t = 2;          % 纠错数
-k = 16;         % 信息位数
+t = 3;          % 纠错数
+k = 15;         % 信息位数
 n = 2^m - 1;    % 编码后长度
 p = n - k;      % 检验位数
 d = 2*t + 1;    % 最小汉明距离
@@ -76,13 +81,17 @@ tx_codeword = [info checkbits];
 % disp("编码序列：");
 % disp(tx_codeword);
 
-% ------------------------------ Decode --------------------------------- %
+% ------------------------- Introduce Errors----------------------------- %
 % 模拟传输过程中的比特错误
 rx_codeword = tx_codeword;
-rx_codeword(4) = 1;
-rx_codeword(9) = 1;
-% rx_codeword(22) = 0;
+err_codeword = zeros(1, n);
+% 随机选择 t 个位置，将它们设置为 1
+indices = randperm(n, t); % 随机选择 t 个不重复的位置
+err_codeword(indices) = 1;
 
+rx_codeword = bitxor(rx_codeword,err_codeword);
+
+% ------------------------------ Decode --------------------------------- %
 % Step 1.计算伴随式
 % minpol_list内存放t个最小项多项式
 % minpol_list_all 内存放2t个包含重复的最小项多项式
