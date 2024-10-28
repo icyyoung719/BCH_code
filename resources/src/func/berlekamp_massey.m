@@ -8,15 +8,13 @@ function sigma_X = berlekamp_massey(syndrome,t,m,field_table)
     % 初始化 BM_table，用于记录算法的迭代过程
     % - 第1列: 迭代步索引
     % - 第2列: 错误定位多项式的当前项表示
+	% 1+X+(alpha^5)*X^2 对应存储 [0 0 5]
+	% 1+X+(alpha^5)*X^3 对应 [0 0 -1 5]		，-1 表示  X^i 不存在
     % - 第3列: 差值 d(k)
     % - 第4列: 错误定位多项式的当前阶数
     % - 第5列: 2*(k+1) - 错误定位多项式的阶数
 	BM_table = cell(t+2,5);				
-    %the second column of RM_table is an one-dimensions array, this row is the order of alpha
-	%ie. 1+X+(alpha^5)*X^2
-	%[0 0 5]
-	%ie. 1+X+(alpha^5)*X^3
-	%[0 0 -1 5]		%-1 denote this X^i do not exist
+
     
     % 初始化第一行，表示 k = -1/2 的初始状态
 	BM_table{1,1} = -1/2;	BM_table{1,2} = [0]; BM_table{1,3} = 0; BM_table{1,4} = 0; BM_table{1,5} = -1;

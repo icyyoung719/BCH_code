@@ -121,8 +121,8 @@ err_pattern(err_locate+1) = 1;
 
 err_pattern = fliplr(err_pattern);
 fx_codeword = bitxor(rx_codeword,err_pattern);
-disp("错误位置：");
-disp(err_pattern);
+% disp("错误位置：");
+% disp(err_pattern);
 
 % ------------------------------ Output --------------------------------- %
 % 检查译码后的结果与信息是否相同
