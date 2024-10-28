@@ -39,27 +39,36 @@ GF = de2bi(M, m, 'left-msb');
 
 % 求生成多项式及最小项多项式，需要先求出各个共轭类，再求每个共轭类的最小项多项式
 [g_x , minpol_list , minpol_list_all] = GeneratorPolynomialGenerator(GF,m,t,primPoly);
+% 生成field_table，是对GF的包装，用于BM译码
+field_table = cell(2^m,2);
+for i = 1:2^m
+    field_table{i,1} = i-2;
+    field_table{i,2} = gf(GF(i,:),1);
+end
 
 % ------------------------------ Encode --------------------------------- %
 % 将输入的信息转化为k位二进制串，进行编码
 % 需要确保信息位长度 <= k，少于的部分会自动用0补全
-input_info = 65;
-if input_info >= 2^k
-    error("输入的信息位过长！");
+input_info = 1;
+info_length = floor(log2(input_info)) + 1;
+if info_length > k
+    error("输入的信息位过长，无法用 k 位二进制数表示！");
 end
 info = de2bi(input_info, k, 'left-msb');
 
 % 将信息位前移，为校验位提供位置
+% 需要确保dividend长度为p，不足的用0补齐
 dividend = info;
 dividend(end+1:end+length(g_x)-1) = 0;
 
 % 使用多项式除法计算校验位
 checkbits = polynomial_mod(dividend, g_x);
+checkbits = [zeros(1, p - length(checkbits)), checkbits];
 
 % 信息位+校验位生成编码序列
 tx_codeword = [info checkbits];
-disp("编码序列：");
-disp(tx_codeword);
+% disp("编码序列：");
+% disp(tx_codeword);
 
 % ------------------------------ Decode --------------------------------- %
 % 模拟传输过程中的比特错误
@@ -68,7 +77,7 @@ rx_codeword(4) = 1;
 rx_codeword(9) = 1;
 rx_codeword(22) = 0;
 
-% 1.计算伴随式
+% Step 1.计算伴随式
 % minpol_list内存放t个最小项多项式
 % minpol_list_all 内存放2t个包含重复的最小项多项式
 
@@ -86,13 +95,42 @@ for i = 1:2*t
 end
 
 % 显示伴随式分量 S(x)
-disp("伴随式分量S(x):");
+disp("伴随式分量S_a:");
 disp(S_a);
 
-% 2.使用berlekamp_massey算法进行译码，得到错误位置多项式
+% S_a全为-1代表没有错误产生
+if(all(S_a == -1))
+    disp("无错误产生");
+    return;
+end
 
-% S_a 是由之前步骤计算得到的伴随式向量
-sigma_x = berlekamp_massey(S_a, t, GF, primPolyBin);
+% Step 2.使用berlekamp_massey算法进行译码，得到错误位置多项式
+% sigma_X 是错误定位多项式，可以用来查找根（即错误位置）
+sigma_X = berlekamp_massey(S_a,t,m,field_table);
+disp("错误位置多项式:");
+disp(sigma_X);
 
-% sigma_x 就是错误定位多项式，可以用来查找根（即错误位置）
-% 无法使用标准bchdec函数，因为需要编码序列位GF(2)而非GF(2^n)
+% Step 3.计算错误模式，进行纠错
+% root_sigma_X 是错误位置的根
+root_sigma_X = find_root_sigma_X(sigma_X,m,field_table);
+
+% 求出对应的错误模式err_pattern
+err_pattern = zeros(1,n);
+err_locate = mod(2^m - 1 - root_sigma_X,2^m-1);
+err_pattern(err_locate+1) = 1;
+
+err_pattern = fliplr(err_pattern);
+fx_codeword = bitxor(rx_codeword,err_pattern);
+disp("错误位置：");
+disp(err_pattern);
+
+% ------------------------------ Output --------------------------------- %
+% 检查译码后的结果与信息是否相同
+% disp(tx_codeword == v);
+isAllOnes = all((tx_codeword == fx_codeword) == 1);
+if isAllOnes
+    disp('tx_codeword 与 译码结果相同');
+else
+    disp('tx_codeword 与 译码结果不同');
+end
+

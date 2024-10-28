@@ -1,4 +1,5 @@
 function [genPoly,minpol_list,minpol_list_all] = GeneratorPolynomialGenerator(GF, m, t, primPoly)
+    % 用于计算生成多项式，同时输出两种最小项多项式
     % GF: 已知的GF(2^m)有限域，由GF = de2bi(M, m, 'left-msb')产生
     % m: 域扩展的阶数，即 GF(2^m)
     % t: 纠错能力

@@ -1,109 +1,65 @@
-function [sigma_x] = berlekamp_massey(S_a, t, GF, primPolyBin)
-    % 输入：
-    % S_a: 接收到的码字的综合 (syndrome) 序列，初始化类型为 S_a = zeros(1, 2*t);
-    % t: 纠错能力，最大纠错的错误个数
-    % GF: 有限域的二进制表示 GF = de2bi(M, m, 'left-msb');
-    % primPolyBin: primPolyBin = de2bi(primPoly, m + 1, 'left-msb');  % 本原多项式的二进制形式
-    % Initialize variables
-    global m;
-    global k;
-    n = 2^m - 1;  % Length of the codeword
-    mu = zeros(1, 2*t);
-    mu(1) = -1/2;  % Initial value of mu
+function sigma_X = berlekamp_massey(syndrome,t,m,field_table)
+    % 用于BCH码的错误定位多项式计算
+    % - syndrome: 伴随式向量，用于计算错误定位多项式
+    % - t: 纠错能力
+    % - m: GF(2^m) 域的次幂
+    % - field_table: 有限域 GF(2^m) 的查找表
 
-    % Sigma matrix initialization
-    sigma_x = zeros(n, n, 2*t);  % Assuming n is the max degree we might deal with
-    sigma_x(1, 1, 1) = 1;  % Start with sigma_0 = 1
+    % 初始化 BM_table，用于记录算法的迭代过程
+    % - 第1列: 迭代步索引
+    % - 第2列: 错误定位多项式的当前项表示
+    % - 第3列: 差值 d(k)
+    % - 第4列: 错误定位多项式的当前阶数
+    % - 第5列: 2*(k+1) - 错误定位多项式的阶数
+	BM_table = cell(t+2,5);				
+    %the second column of RM_table is an one-dimensions array, this row is the order of alpha
+	%ie. 1+X+(alpha^5)*X^2
+	%[0 0 5]
+	%ie. 1+X+(alpha^5)*X^3
+	%[0 0 -1 5]		%-1 denote this X^i do not exist
+    
+    % 初始化第一行，表示 k = -1/2 的初始状态
+	BM_table{1,1} = -1/2;	BM_table{1,2} = [0]; BM_table{1,3} = 0; BM_table{1,4} = 0; BM_table{1,5} = -1;
+    % 初始化第二行，表示 k = 0 的状态
+	BM_table{2,1} = 0;	BM_table{2,2} = [0]; BM_table{2,4} = 0; BM_table{2,5} = 0;
 
-    d_mu = zeros(1, 2*t);
-    l_mu = zeros(1, 2*t);
+    % 迭代循环，从 k = 0 开始，到 k = t - 1 为止
+	for k_ = 0:t-1
+		dk = compute_dk(BM_table, syndrome, field_table, m, k_);
+        % 如果差值 d(k) 为 -1，说明没有错误的校正项，继续沿用上一行的多项式
+		if dk == -1
+			BM_table{k_+2+1,2} = BM_table{k_+2,2};
+        else 		
+            % 计算差值不为 -1 时，求出校正项
+			correct_item = get_correct_item(dk, BM_table, field_table, m, k_);
 
-    twomu_lmu = zeros(1, 2*t);
-    twomu_lmu(1) = -1;  % Initial value
+			BM_table{k_+2+1,2} = zeros(1,length(correct_item));
+            % 使用前一行的多项式进行扩展，并保持阶数一致
+			tmp = [BM_table{k_+2,2},-1*ones(1,length(correct_item)-length(BM_table{k_+2,2}))];	%bao_chi wei_du yi_zhi
+            
+            % 更新当前多项式的每一项，利用校正项进行累加或扩展
+			for i_ = 1:length(correct_item)
+				if correct_item(i_) == -1 && tmp(i_) == -1
+					BM_table{k_+2+1,2}(i_) = -1; % 如果两者都不存在，则保持为 -1
+				elseif correct_item(i_) == -1 && tmp(i_) ~= -1
+					BM_table{k_+2+1,2}(i_) = BM_table{k_+2,2}(i_); % 只存在 tmp 中的值		
+				elseif correct_item(i_) ~= -1 && tmp(i_) == -1
+					BM_table{k_+2+1,2}(i_) = correct_item(i_); % 只存在校正项中的值
+                else 
+                    % 都存在时，在有限域中执行加法操作
+					BM_table{k_+2+1,2}(i_) = gf_add(correct_item(i_),tmp(i_),field_table);
+				end							
+			end
+		end
+        
+        % 更新表格的其他列信息
+        BM_table{k_+2+1, 1} = k_ + 1;                            % 当前迭代步
+        BM_table{k_+2, 3} = dk;                                  % 差值 d(k)
+        BM_table{k_+2+1, 4} = length(BM_table{k_+2+1, 2}) - 1;   % 错误定位多项式的当前阶数
+        BM_table{k_+2+1, 5} = 2 * (k_ + 1) - BM_table{k_+2+1, 4}; % 2*(k+1) - 错误定位多项式的阶数
 
-    % Fill in the table
-    for j = 1:2*t
-        if j > 1
-            d_mu(j) = S_a(j-1);  % Fill d_mu with syndrome values
-        end
-
-        if d_mu(j) == 0
-            % No update for sigma if d_mu is zero
-            sigma_x(:,:,j+1) = sigma_x(:,:,j);
-        else
-            % Find a preceding row with the most positive twomu_lmu and d_mu ~= 0
-            rho = 0;
-            most_pos = -Inf;
-
-            for k = 1:j-1
-                if twomu_lmu(k) > most_pos && d_mu(k) ~= -1
-                    most_pos = twomu_lmu(k);
-                    rho = k;
-                end
-            end
-
-            % Calculate the new sigma_x
-            power = 2 * (mu(j) - mu(rho));
-            sigma_rho = sigma_x(:,:,rho);
-
-            % Shift sigma_rho according to the power
-            for i = 1:power
-                sigma_rho(1:end-1) = sigma_rho(2:end);
-                sigma_rho(end) = 0;  % Assuming -1 is treated as 0 in binary field
-            end
-
-            coeff = p_mult(d_mu(j), p_inv(d_mu(rho)));  % Calculate d_mu * d_rho^(-1)
-
-            % Update sigma_rho with the calculated coefficient
-            for i = 1:length(sigma_rho)
-                if sigma_rho(i) ~= -1
-                    sigma_rho(i) = p_mult(sigma_rho(i), coeff);
-                end
-            end
-
-            % Update sigma_x with the new values
-            sigma_x(:,:,j+1) = poly_add(GF, sigma_x(:,:,j), sigma_rho);
-        end
-
-        % Terminate if mu reaches error correction limit
-        if mu(j) == t - 1
-            break;
-        end
-
-        % Calculate l_mu(j+1)
-        degree = max(find(sigma_x(:,1,j+1) ~= -1));
-        l_mu(j+1) = degree;
-
-        % Update d_mu(j+1) using S_a and sigma_x
-        S_sigma_coeff = zeros(2, 2);
-        for i = 0:l_mu(j+1)
-            S_sub = 2 * mu(j) + (3 - i);
-            sigma_term = length(sigma_x(:,:,j+1)) - i;
-            S_sigma_coeff(:, i + 1) = [S_sub; sigma_term];
-        end
-
-        alpha_poly = -1 * ones(1, 3);
-        for i = 1:length(S_sigma_coeff)
-            if S_sigma_coeff(1, i) ~= -1
-                alpha_poly(i) = p_mult(S_a(S_sigma_coeff(1, i)), sigma_x(1, S_sigma_coeff(2, i), j+1));
-            end
-        end
-
-        % Create binary representation of alpha polynomial
-        binary_alpha_poly = zeros(1, 500);
-        for i = 1:length(alpha_poly)
-            if alpha_poly(i) ~= -1
-                binary_alpha_poly(length(binary_alpha_poly) - alpha_poly(i)) = 1;
-            end
-        end
-
-        % Update d_mu for the next iteration
-        d_mu(j+1) = poly2power(GF, polynomial_mod(binary_alpha_poly, primPolyBin));
-
-        % Calculate twomu_lmu(j+1)
-        twomu_lmu(j+1) = 2 * mu(j+1) - l_mu(j+1);
     end
 
-    % Error locator polynomial is the last entry of sigma_x
-    error_loc_poly = sigma_x(:,:,length(sigma_x));
+    % 输出最后一行中的错误定位多项式 sigma_X
+	sigma_X = BM_table{t+2,2};
 end
