@@ -1,5 +1,5 @@
 % Found Errors:
-% m=10 , t=3 
+% m=10 , t=3，2
 % m=7,t =4
 % m=7 t=3 结果可能正确，也可能出错
 % ------------------------------ Begin --------------------------------- %
@@ -7,9 +7,9 @@ global m;
 global t;
 global k;
 
-m = 6;          % 取人伽罗华域的大小GF(2^m)
-t = 3;          % 纠错数
-k = 15;         % 信息位数
+m = 10;          % 取人伽罗华域的大小GF(2^m)
+t = 2;          % 纠错数
+k = 7;         % 信息位数
 n = 2^m - 1;    % 编码后长度
 p = n - k;      % 检验位数
 d = 2*t + 1;    % 最小汉明距离
@@ -58,8 +58,8 @@ end
 
 % 随机获取长度小于等于k的信息数据
 max_value = 2^k - 1;
-input_info = randi(max_value);
-% input_info = 65;
+% input_info = randi(max_value);
+input_info = 65;
 info_length = floor(log2(input_info)) + 1;
 if info_length > k
     error("输入的信息位过长，无法用 k 位二进制数表示！");
@@ -84,12 +84,17 @@ tx_codeword = [info checkbits];
 % ------------------------- Introduce Errors----------------------------- %
 % 模拟传输过程中的比特错误
 rx_codeword = tx_codeword;
+%{
 err_codeword = zeros(1, n);
 % 随机选择 t 个位置，将它们设置为 1
 indices = randperm(n, t); % 随机选择 t 个不重复的位置
 err_codeword(indices) = 1;
 
 rx_codeword = bitxor(rx_codeword,err_codeword);
+%}
+rx_codeword(4) = 1;
+rx_codeword(9) = 1;
+rx_codeword(22) = 0;
 
 % ------------------------------ Decode --------------------------------- %
 % Step 1.计算伴随式
@@ -106,7 +111,7 @@ for i = 1:2*t
     % 计算rx_codeword与这个最小项多项式的取模，即S的2t个分量
     S_i = polynomial_mod(rx_codeword, minpol);
     % 转换为有限域中的幂次形式
-    S_a(i) = poly2power(GF, polynomial_mod(generateSi_a(S_i, i), primPolyBin));
+    S_a(i) = poly2power(GF, polynomial_mod(generateSi_a(S_i, i, m), primPolyBin));
 end
 
 % 显示伴随式分量 S(x)
