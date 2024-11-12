@@ -16,7 +16,7 @@ function [ Si_a ] = generateSi_a(Si_x, i, m)
 	end
 
 	for k = 2:length(Si_x)
-		if Si_x(k) ~= 0
+		if Si_x(k) ~= 0  
 			Si_a(length_of_Si_a-Si_x(k)) = 1; 
 		end
 	end

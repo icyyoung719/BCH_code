@@ -1,15 +1,11 @@
-% Found Errors:
-% m=10 , t=3，2
-% m=7,t =4
-% m=7 t=3 结果可能正确，也可能出错
 % ------------------------------ Begin --------------------------------- %
 global m;
 global t;
 global k;
 
-m = 10;          % 取人伽罗华域的大小GF(2^m)
-t = 2;          % 纠错数
-k = 7;         % 信息位数
+m = 4;          % 取人伽罗华域的大小GF(2^m)
+t = 3;          % 纠错数
+k = 3;          % 信息位数
 n = 2^m - 1;    % 编码后长度
 p = n - k;      % 检验位数
 d = 2*t + 1;    % 最小汉明距离
@@ -20,6 +16,7 @@ elseif p < m*t
     error('校验位数不足以纠正 t 个错误');
 end
 
+% ------------------------------ Pre-Compute --------------------------------- %
 % 由m求有限域GF(2^m)
 % primPolys存放不同m对应的本原多项式的10进制表示 
 primPolys = [
@@ -56,16 +53,12 @@ end
 % 将输入的信息转化为k位二进制串，进行编码
 % 需要确保信息位长度 <= k，少于的部分会自动用0补全
 
-% 随机获取长度小于等于k的信息数据
-max_value = 2^k - 1;
-% input_info = randi(max_value);
-input_info = 65;
-info_length = floor(log2(input_info)) + 1;
-if info_length > k
-    error("输入的信息位过长，无法用 k 位二进制数表示！");
-end
-
-info = de2bi(input_info, k, 'left-msb');
+% 随机生成一个长度小于等于 k 的二进制串
+info_length = randi(k);  % 随机生成一个 1 到 k 之间的长度
+original_info = randi([0, 1], 1, info_length);  % 生成长度为 info_length 的 0, 1 串
+% 补充 0，使得 info 的长度为 k
+info = [zeros(1, k - length(original_info)), original_info];
+% info = [0 0 0];
 
 % 将信息位前移，为校验位提供位置
 % 需要确保dividend长度为p，不足的用0补齐
@@ -78,23 +71,18 @@ checkbits = [zeros(1, p - length(checkbits)), checkbits];
 
 % 信息位+校验位生成编码序列
 tx_codeword = [info checkbits];
-% disp("编码序列：");
-% disp(tx_codeword);
+%tx_codeword = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 1 1 1 1 0 1 0 1 1 0 0 0];
 
 % ------------------------- Introduce Errors----------------------------- %
 % 模拟传输过程中的比特错误
 rx_codeword = tx_codeword;
-%{
+
 err_codeword = zeros(1, n);
 % 随机选择 t 个位置，将它们设置为 1
 indices = randperm(n, t); % 随机选择 t 个不重复的位置
 err_codeword(indices) = 1;
-
+%err_codeword = [0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 rx_codeword = bitxor(rx_codeword,err_codeword);
-%}
-rx_codeword(4) = 1;
-rx_codeword(9) = 1;
-rx_codeword(22) = 0;
 
 % ------------------------------ Decode --------------------------------- %
 % Step 1.计算伴随式
@@ -114,10 +102,6 @@ for i = 1:2*t
     S_a(i) = poly2power(GF, polynomial_mod(generateSi_a(S_i, i, m), primPolyBin));
 end
 
-% 显示伴随式分量 S(x)
-disp("伴随式分量S_a:");
-disp(S_a);
-
 % S_a全为-1代表没有错误产生
 if(all(S_a == -1))
     disp("无错误产生");
@@ -127,8 +111,6 @@ end
 % Step 2.使用berlekamp_massey算法进行译码，得到错误位置多项式
 % sigma_X 是错误定位多项式，可以用来查找根（即错误位置）
 sigma_X = berlekamp_massey(S_a,t,m,field_table);
-disp("错误位置多项式:");
-disp(sigma_X);
 
 % Step 3.计算错误模式，进行纠错
 % root_sigma_X 是错误位置的根
@@ -141,16 +123,21 @@ err_pattern(err_locate+1) = 1;
 
 err_pattern = fliplr(err_pattern);
 fx_codeword = bitxor(rx_codeword,err_pattern);
-% disp("错误位置：");
-% disp(err_pattern);
+
 
 % ------------------------------ Output --------------------------------- %
 % 检查译码后的结果与信息是否相同
 % disp(tx_codeword == v);
 isAllOnes = all((tx_codeword == fx_codeword) == 1);
 if isAllOnes
-    disp('tx_codeword 与 译码结果相同');
+    disp('相同');
 else
     disp('tx_codeword 与 译码结果不同');
+   % disp('tx_codeword:'  );
+    %disp(tx_codeword);
+    %disp('err_codeword');
+    %disp(err_codeword);
+    %disp('fx_codeword:' );
+    %disp(fx_codeword);
 end
 

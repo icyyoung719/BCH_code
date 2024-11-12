@@ -1,10 +1,3 @@
-%compute_dk.m
-%Author: YU DONG LEI
-%Date: 2017/12/17
-%Version: 0.1
-%
-%
-%
 function dk = compute_dk(BM_table,syndrome,field_table,m,k)
 	index_begin = 2*k+1;
 	index_end = BM_table{k+2,5} + 1;
@@ -39,9 +32,15 @@ function dk = compute_dk(BM_table,syndrome,field_table,m,k)
 
 	for j_ = 1:length(tmp)-1
 		tmp(j_+1) = gf_add(tmp(j_),tmp(j_+1),field_table);
-	end
+    end
 
-	dk = tmp(end);
+    if isempty(tmp)
+        dk = -1;
+    else if tmp(end) == -1
+	    dk = -1;
+    else
+        dk = tmp(end);
+    end
 	%if tmp(end)==-1, means that the true value of dk is 0, sigma(k+1) = sigma(k)
 
 end
