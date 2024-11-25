@@ -44,5 +44,9 @@ function [ r ] = polynomial_mod( a, b )
 
 		% Divide a/b by performing XOR of 'a' and 'btemp'
 		a = xor(a,btemp);
-	end
+    end
+
+    % Ensure the remainder has the same length as the divisor (b) minus 1
+    % r = r(find(r, 1, 'first'):end);  % Remove leading zeros from the remainder
+    % r = [zeros(1, max(0, length(b) - 1 - length(r))), r];  % Pad leading zeros
 end

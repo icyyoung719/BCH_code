@@ -5,6 +5,12 @@ function [ power ] = poly2power( GF, poly )
 	temp = bi2de(poly, 'left-msb');   % 将多项式从二进制转换为十进制
 	poly = de2bi(temp, m, 'left-msb'); % 再将其转换为长度为 m 的二进制形式
 
+        % 确保 poly 的列数与 GF 一致
+    if size(poly, 2) < size(GF, 2)
+        % 添加缺少的零，使 poly 的长度与 GF 的列数一致
+        poly = [zeros(1, size(GF, 2) - size(poly, 2)), poly];
+    end
+
 	% 在 GF 中找到多项式的位置。
 	location = 0;
 	for i = 1:size(GF,1)

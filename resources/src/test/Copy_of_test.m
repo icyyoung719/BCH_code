@@ -1,4 +1,5 @@
 % 全方位测试脚本：只测试在 BCH 合理范围内的情况
+% 测试m：1到11，选择最大的k
 fprintf('Testing main_function for m in range 2 to 12\n');
 max_m = 12;
 
