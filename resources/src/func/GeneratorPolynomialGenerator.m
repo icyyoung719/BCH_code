@@ -7,47 +7,59 @@ function [genPoly,minpol_list,minpol_list_all] = GeneratorPolynomialGenerator(GF
 
     t2 = 2*t;
 
+    % 初始化minpol_list_all
+    minpol_list_all = cell(1, 2 * t); % 使用cell以支持不同长度的多项式
+    p = 1; % minpol_list 的索引
+    minpol_list = []; % 初始化 minpol_list
+    
     % 确定域的共轭类
     coset = cosets(m, primPoly, 'nodisplay');
-
-    % 确定最小多项式
-    minpol_list = [];
+    
+    % 生成最小多项式并填充minpol_list_all
     for idx1 = 2 : numel(coset)
-        if(any(find(log(coset{idx1}) < t2)))  % 如果该共轭类中包含 alpha 的幂次小于 2t 的元素
+        % 如果该共轭类中包含 alpha 的幂次小于 2t 的元素
+        if any(find(log(coset{idx1}) < 2 * t))
+            % 计算最小多项式
             tempPoly = 1;
             thisCoset = coset{idx1};
             for idx2 = 1 : length(thisCoset)
-                tempPoly = conv(tempPoly, [1 thisCoset(idx2)]); % 多项式相乘，计算其最小项多项式
+                tempPoly = conv(tempPoly, [1 thisCoset(idx2)]); % 多项式相乘
             end
-            minPol = gf([zeros(1,m+1-length(tempPoly))  tempPoly.x],1);
-            minpol_list = [minpol_list;minPol];
-        end
-    end
+            minPol = gf([zeros(1, m + 1 - length(tempPoly)), tempPoly.x], 1);
+    
+            % 将生成的最小多项式添加到minpol_list
+            minpol_list = [minpol_list; minPol];
 
-    % 初始化minpol_list_all
-    minpol_list_all = cell(1, 2 * t); % 使用cell以支持不同长度的多项式
-    filled = false(1, 2 * t); % 跟踪已填写的索引
-    p=1;
-    for i = 1:2*t
-        % 检查 minpol_list_all[i] 是否已被填充
-        if isempty(minpol_list_all{i})
-            % 填充当前索引 i 及其对应的共轭类
-            j = i;  % 设置当前索引为 j
-            while j <= 2*t
-                % 检查是否在范围内并填充
-                minpol_list_all{j} = minpol_list(p, :);  % 复制最小多项式
-                j = j * 2;  % 使用共轭关系（指数法则）
+            % 找到minpol_list_all中第一个空位置，填充最小多项式
+            i = find(cellfun(@isempty, minpol_list_all), 1); % 获取第一个空位置的索引
+            if isempty(i)
+                error('minpol_list_all 没有空位置，无法填充。');
             end
-            
-            % 填充完所有共轭类后，p自增
-            p = p + 1;  
-            
-            % 如果p > t，则结束循环
+            % 填充到minpol_list_all
+            while i <= 2 * t
+                if isempty(minpol_list_all{i})
+                    minpol_list_all{i} = minPol; % 复制最小多项式到minpol_list_all
+                end
+                i = i * 2; % 处理共轭关系
+            end
+    
+            % 更新指针
+            p = p + 1;
+    
+            % 如果已填充的最小多项式数超过 t，则停止
             if p > t
                 break;
             end
         end
     end
+    
+    % 检查是否所有必要的 minpol_list_all 均已填充
+    for i = 1:2*t
+        if isempty(minpol_list_all{i})
+            error('minpol_list_all 在索引 %d 未被正确填充，可能存在逻辑问题。', i);
+        end
+    end
+
 
     % 确定生成多项式
     len = size(minpol_list, 1);

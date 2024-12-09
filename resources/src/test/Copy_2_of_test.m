@@ -19,7 +19,7 @@ for k_idx = 1:length(k_values)
     k = 2^k_values(k_idx);  % 计算真正的k值
     
     % 遍历t的范围
-    for t = 1:10
+    for t = 1:8
         % 计算对应的m值，满足 n = 2^m - 1 且 k = n - mt
         % 这里需要通过迭代来寻找满足条件的最小m
         m_found = false;

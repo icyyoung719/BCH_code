@@ -83,10 +83,13 @@ function main_function(m, t, k, logFile)
     
     % 对于每个 alpha^i 的伴随式，使用 alpha^i 的最小项多项式
     for i = 1:2*t
-        minpol = minpol_list_all{i};
-        minpol = minpol.x;
+        Minpol = minpol_list_all{i};
+        Minpol = Minpol.x;
+        % 去除minpol的前导0，防止polynomial_mod出现错误导致无线循环
+        firstNonZeroIdx = find(Minpol ~= 0, 1, 'first');
+        Minpol = Minpol(firstNonZeroIdx:end);
         % 计算rx_codeword与这个最小项多项式的取模，即S的2t个分量
-        S_i = polynomial_mod(rx_codeword, minpol);
+        S_i = polynomial_mod(rx_codeword, Minpol);
         % 转换为有限域中的幂次形式
         S_a(i) = poly2power(GF, polynomial_mod(generateSi_a(S_i, i, m), primPolyBin));
     end
