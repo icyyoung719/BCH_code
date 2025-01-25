@@ -123,8 +123,9 @@ function main_function(m, t, k, logFile)
     if isAllOnes
         disp('相同');
     else
+        disp('tx_codeword 与 译码结果不同');
         fprintf(logFile,'tx_codeword 与 译码结果不同');
-        fprintf(logFile, 'Testing with m=%d, t=%d, k=%d ... \n', m, t, k)
+        fprintf(logFile, 'Testing with m=%d, t=%d, k=%d ... \n', m, t, k);
         fprintf(logFile, 'tx_codeword: ');
         fprintf(logFile, '%d ', tx_codeword); % 按照格式 %d 输出每个元素
         fprintf(logFile, '\n');

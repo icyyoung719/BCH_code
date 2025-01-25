@@ -1,0 +1,1 @@
+Error for m=4, t=1, k=11: 未定义与 'double' 类型的输入参数相对应的函数 'PrimitivePolynomialGenerator'。
